@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api/sql")
+@RequestMapping({"/api/sql", "/sql"})
 @CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class SqlController {
 

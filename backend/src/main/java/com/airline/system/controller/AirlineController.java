@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/airlines")
+@RequestMapping({"/api/airlines", "/airlines"})
 @CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class AirlineController {
 

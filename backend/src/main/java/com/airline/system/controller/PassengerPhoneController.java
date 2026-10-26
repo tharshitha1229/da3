@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/passenger-phones")
+@RequestMapping({"/api/passenger-phones", "/passenger-phones"})
 @CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class PassengerPhoneController {
 
