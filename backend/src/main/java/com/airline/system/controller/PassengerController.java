@@ -22,13 +22,11 @@ public class PassengerController {
         this.passengerService = passengerService;
     }
 
-    // GET all passengers
     @GetMapping
     public ResponseEntity<List<Passenger>> getAllPassengers() {
         return ResponseEntity.ok(passengerService.getAllPassengers());
     }
 
-    // GET passenger by ID
     @GetMapping("/{id}")
     public ResponseEntity<?> getPassenger(@PathVariable String id) {
 
@@ -42,19 +40,16 @@ public class PassengerController {
         return ResponseEntity.ok(passenger);
     }
 
-    // Traversal: GET passengers by flight
     @GetMapping("/flight/{flightId}")
     public ResponseEntity<List<Passenger>> getPassengersByFlight(@PathVariable String flightId) {
         return ResponseEntity.ok(passengerService.getPassengersByFlight(flightId));
     }
 
-    // Traversal: GET baggage by passenger
     @GetMapping("/{id}/baggage")
     public ResponseEntity<List<Baggage>> getBaggageByPassenger(@PathVariable String id) {
         return ResponseEntity.ok(passengerService.getBaggageByPassenger(id));
     }
 
-    // ADD passenger
     @PostMapping
     public ResponseEntity<String> addPassenger(
             @Valid @RequestBody Passenger passenger) {
@@ -65,7 +60,6 @@ public class PassengerController {
                 .body("Passenger added successfully");
     }
 
-    // UPDATE passenger
     @PutMapping("/{id}")
     public ResponseEntity<?> updatePassenger(
             @PathVariable String id,
@@ -81,7 +75,6 @@ public class PassengerController {
         return ResponseEntity.ok("Passenger updated successfully");
     }
 
-    // DELETE passenger
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletePassenger(
             @PathVariable String id) {
