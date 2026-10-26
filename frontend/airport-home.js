@@ -1,10 +1,8 @@
 const AIRTRACK_API =
-    "http://localhost:8080/api";
+    "https://airline-backend-1lhg.onrender.com/api";
 
 
-/* =========================================================
-   ENTER EXISTING DASHBOARD
-========================================================= */
+
 
 function enterDashboard() {
 
@@ -14,9 +12,7 @@ function enterDashboard() {
 }
 
 
-/* =========================================================
-   OPEN EXISTING MODULE
-========================================================= */
+
 
 function openModule(section) {
 
@@ -26,9 +22,7 @@ function openModule(section) {
 }
 
 
-/* =========================================================
-   LIVE COUNTS
-========================================================= */
+
 
 async function loadCounts() {
 
@@ -133,9 +127,7 @@ async function loadCounts() {
 }
 
 
-/* =========================================================
-   FLIGHT BOARD
-========================================================= */
+
 
 async function loadFlights() {
 
@@ -247,9 +239,7 @@ async function loadFlights() {
 }
 
 
-/* =========================================================
-   GLOBAL SEARCH
-========================================================= */
+
 
 const searchSources = [
 
@@ -315,9 +305,7 @@ const searchSources = [
 let searchData = [];
 
 
-/* =========================================================
-   LOAD SEARCH DATA
-========================================================= */
+
 
 async function loadSearchData() {
 
@@ -396,9 +384,7 @@ async function loadSearchData() {
 }
 
 
-/* =========================================================
-   SEARCH
-========================================================= */
+
 
 function setupSearch() {
 
@@ -489,9 +475,7 @@ function setupSearch() {
 }
 
 
-/* =========================================================
-   RENDER SEARCH
-========================================================= */
+
 
 function renderSearchResults(
     matches
@@ -605,9 +589,7 @@ function renderSearchResults(
 }
 
 
-/* =========================================================
-   SEARCH RESULT
-========================================================= */
+
 
 function selectSearchResult(
     index
@@ -635,9 +617,7 @@ function selectSearchResult(
 }
 
 
-/* =========================================================
-   PRIMARY VALUE
-========================================================= */
+
 
 function getPrimaryValue(
     record
@@ -680,9 +660,7 @@ function getPrimaryValue(
 }
 
 
-/* =========================================================
-   SECONDARY VALUE
-========================================================= */
+
 
 function getSecondaryValue(
     record
@@ -724,9 +702,7 @@ function getSecondaryValue(
 }
 
 
-/* =========================================================
-   TIME
-========================================================= */
+
 
 function formatTime(value) {
 
@@ -743,9 +719,7 @@ function formatTime(value) {
 }
 
 
-/* =========================================================
-   SAFE HTML
-========================================================= */
+
 
 function safe(value) {
 
@@ -769,9 +743,7 @@ function safe(value) {
 }
 
 
-/* =========================================================
-   TEAM
-========================================================= */
+
 
 function showTeam() {
 
@@ -793,9 +765,7 @@ function closeTeam() {
 }
 
 
-/* =========================================================
-   CTRL + K
-========================================================= */
+
 
 document.addEventListener(
     "keydown",
@@ -822,9 +792,7 @@ document.addEventListener(
 );
 
 
-/* =========================================================
-   INITIALIZE
-========================================================= */
+
 
 async function initializeAirportHome() {
 
