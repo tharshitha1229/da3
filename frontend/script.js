@@ -181,40 +181,88 @@ function showSection(sectionId) {
     });
 }
 
-async function waitForBackend(maxWaitMs = 45000, intervalMs = 3000) {
+async function waitForBackend(maxWaitMs = 60000, intervalMs = 5000) {
     const statusElem = document.querySelector(".system-status");
     const startTime = Date.now();
-    while (Date.now() - startTime < maxWaitMs) {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 6000);
-            const res = await fetch(`${API_BASE}/airlines`, {
-                method: "GET",
-                signal: controller.signal,
-                headers: { "Content-Type": "application/json" }
-            });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-                return true;
-            }
-        } catch (e) {
+    let countdownInterval = null;
+
+    function setStatus(text, type) {
+        if (!statusElem) return;
+        statusElem.textContent = text;
+        if (type === "waking") {
+            statusElem.className = "system-status status-waking";
+            statusElem.style.setProperty("color", "#eab308", "important");
+            statusElem.style.setProperty("background", "rgba(234, 179, 8, 0.12)", "important");
+            statusElem.style.setProperty("border-color", "rgba(234, 179, 8, 0.35)", "important");
+        } else if (type === "online") {
+            statusElem.className = "system-status status-online";
+            statusElem.style.setProperty("color", "#16a34a", "important");
+            statusElem.style.setProperty("background", "rgba(22, 201, 135, 0.07)", "important");
+            statusElem.style.setProperty("border-color", "rgba(36, 201, 135, 0.13)", "important");
+        } else if (type === "offline") {
+            statusElem.className = "system-status status-offline";
+            statusElem.style.setProperty("color", "#dc2626", "important");
+            statusElem.style.setProperty("background", "rgba(220, 38, 38, 0.12)", "important");
+            statusElem.style.setProperty("border-color", "rgba(220, 38, 38, 0.35)", "important");
         }
-        if (statusElem) {
-            const elapsed = Math.round((Date.now() - startTime) / 1000);
-            statusElem.textContent = `● Waking up server (${elapsed}s)...`;
-            statusElem.style.color = "#eab308";
-        }
-        await new Promise(resolve => setTimeout(resolve, intervalMs));
     }
+
+    try {
+        while (Date.now() - startTime < maxWaitMs) {
+            const timePassed = Date.now() - startTime;
+            const remainingSec = Math.max(0, Math.ceil((maxWaitMs - timePassed) / 1000));
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4500);
+                const res = await fetch(`${API_BASE}/airlines`, {
+                    method: "GET",
+                    signal: controller.signal,
+                    headers: { "Content-Type": "application/json" }
+                });
+                clearTimeout(timeoutId);
+                if (res.ok) {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    setStatus("● API Online", "online");
+                    return true;
+                }
+            } catch (e) {
+            }
+
+            if (!countdownInterval) {
+                setStatus(`● Waking up server (${remainingSec}s)...`, "waking");
+                countdownInterval = setInterval(() => {
+                    const secLeft = Math.max(0, Math.ceil((maxWaitMs - (Date.now() - startTime)) / 1000));
+                    if (secLeft > 0) {
+                        setStatus(`● Waking up server (${secLeft}s)...`, "waking");
+                    }
+                }, 1000);
+            }
+
+            const sleepDuration = Math.min(intervalMs, Math.max(200, maxWaitMs - (Date.now() - startTime)));
+            if (Date.now() - startTime + sleepDuration < maxWaitMs) {
+                await new Promise(resolve => setTimeout(resolve, sleepDuration));
+            } else {
+                break;
+            }
+        }
+    } finally {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+        }
+    }
+
+    setStatus("● API Offline", "offline");
     return false;
 }
 
-async function fetchData(endpoint, options = {}, retries = 5, backoffMs = 2500) {
+async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000) {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
+    const statusElem = document.querySelector(".system-status");
     for (let attempt = 0; attempt <= (isGet ? retries : 0); attempt++) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
 
             const response = await fetch(
                 `${API_BASE}${endpoint}`,
@@ -246,6 +294,14 @@ async function fetchData(endpoint, options = {}, retries = 5, backoffMs = 2500) 
 
             if (!response.ok) {
                 if (isGet && attempt < retries && (response.status === 404 || response.status >= 500)) {
+                    if (statusElem && !statusElem.textContent.includes("Online")) {
+                        const secLeft = Math.max(0, (retries - attempt) * Math.round(backoffMs / 1000));
+                        statusElem.textContent = `● Waking up server (${secLeft}s)...`;
+                        statusElem.className = "system-status status-waking";
+                        statusElem.style.setProperty("color", "#eab308", "important");
+                        statusElem.style.setProperty("background", "rgba(234, 179, 8, 0.12)", "important");
+                        statusElem.style.setProperty("border-color", "rgba(234, 179, 8, 0.35)", "important");
+                    }
                     await new Promise(r => setTimeout(r, backoffMs));
                     continue;
                 }
@@ -259,6 +315,14 @@ async function fetchData(endpoint, options = {}, retries = 5, backoffMs = 2500) 
             return data;
         } catch (err) {
             if (isGet && attempt < retries) {
+                if (statusElem && !statusElem.textContent.includes("Online")) {
+                    const secLeft = Math.max(0, (retries - attempt) * Math.round(backoffMs / 1000));
+                    statusElem.textContent = `● Waking up server (${secLeft}s)...`;
+                    statusElem.className = "system-status status-waking";
+                    statusElem.style.setProperty("color", "#eab308", "important");
+                    statusElem.style.setProperty("background", "rgba(234, 179, 8, 0.12)", "important");
+                    statusElem.style.setProperty("border-color", "rgba(234, 179, 8, 0.35)", "important");
+                }
                 await new Promise(r => setTimeout(r, backoffMs));
                 continue;
             }
@@ -290,23 +354,32 @@ async function loadDashboard() {
 
         const statusElem = document.querySelector(".system-status");
         if (statusElem) {
+            statusElem.className = "system-status status-online";
             statusElem.textContent = "● API Online";
-            statusElem.style.color = "#16a34a";
+            statusElem.style.setProperty("color", "#16a34a", "important");
+            statusElem.style.setProperty("background", "rgba(22, 201, 135, 0.07)", "important");
+            statusElem.style.setProperty("border-color", "rgba(36, 201, 135, 0.13)", "important");
         }
         return;
     }
 
     const statusElem = document.querySelector(".system-status");
     if (statusElem) {
+        statusElem.className = "system-status status-waking";
         statusElem.textContent = "● Connecting to API...";
-        statusElem.style.color = "#eab308";
+        statusElem.style.setProperty("color", "#eab308", "important");
+        statusElem.style.setProperty("background", "rgba(234, 179, 8, 0.12)", "important");
+        statusElem.style.setProperty("border-color", "rgba(234, 179, 8, 0.35)", "important");
     }
 
-    const isAwake = await waitForBackend(45000, 3000);
+    const isAwake = await waitForBackend(60000, 5000);
     if (!isAwake) {
         if (statusElem) {
+            statusElem.className = "system-status status-offline";
             statusElem.textContent = "● API Offline";
-            statusElem.style.color = "#dc2626";
+            statusElem.style.setProperty("color", "#dc2626", "important");
+            statusElem.style.setProperty("background", "rgba(220, 38, 38, 0.12)", "important");
+            statusElem.style.setProperty("border-color", "rgba(220, 38, 38, 0.35)", "important");
         }
         return;
     }
@@ -356,8 +429,11 @@ async function loadDashboard() {
         updateDashboardCount("payment-count", payments.length);
 
         if (statusElem) {
+            statusElem.className = "system-status status-online";
             statusElem.textContent = "● API Online";
-            statusElem.style.color = "#16a34a";
+            statusElem.style.setProperty("color", "#16a34a", "important");
+            statusElem.style.setProperty("background", "rgba(22, 201, 135, 0.07)", "important");
+            statusElem.style.setProperty("border-color", "rgba(36, 201, 135, 0.13)", "important");
         }
 
     } catch (error) {
@@ -367,8 +443,11 @@ async function loadDashboard() {
         );
 
         if (statusElem) {
+            statusElem.className = "system-status status-offline";
             statusElem.textContent = "● API Offline";
-            statusElem.style.color = "#dc2626";
+            statusElem.style.setProperty("color", "#dc2626", "important");
+            statusElem.style.setProperty("background", "rgba(220, 38, 38, 0.12)", "important");
+            statusElem.style.setProperty("border-color", "rgba(220, 38, 38, 0.35)", "important");
         }
     }
 }

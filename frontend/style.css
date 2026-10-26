@@ -7446,6 +7446,24 @@ body {
         .5px;
 }
 
+.system-status.status-waking {
+    background: rgba(234, 179, 8, 0.12) !important;
+    border: 1px solid rgba(234, 179, 8, 0.35) !important;
+    color: #eab308 !important;
+}
+
+.system-status.status-offline {
+    background: rgba(220, 38, 38, 0.12) !important;
+    border: 1px solid rgba(220, 38, 38, 0.35) !important;
+    color: #dc2626 !important;
+}
+
+.system-status.status-online {
+    background: rgba(22, 201, 135, 0.07) !important;
+    border: 1px solid rgba(36, 201, 135, 0.13) !important;
+    color: #3de0a0 !important;
+}
+
 
 /* ============================================================
    USER / TEAM BUTTON

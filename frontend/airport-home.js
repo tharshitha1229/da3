@@ -1,7 +1,8 @@
 const AIRTRACK_API =
     "https://airline-backend-1lhg.onrender.com/api";
 
-async function fetchAirportWithRetry(url, options = {}, retries = 8, delay = 3000) {
+async function fetchAirportWithRetry(url, options = {}, retries = 12, delay = 5000) {
+    const liveStatus = document.querySelector(".live-status");
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
             const controller = new AbortController();
@@ -13,16 +14,34 @@ async function fetchAirportWithRetry(url, options = {}, retries = 8, delay = 300
             clearTimeout(timeoutId);
             if (!response.ok) {
                 if (attempt < retries && (response.status === 404 || response.status >= 500)) {
+                    if (liveStatus) {
+                        const remaining = Math.max(0, (retries - attempt) * Math.round(delay / 1000));
+                        liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> WAKING UP SERVER (${remaining}s)...`;
+                        liveStatus.style.color = "#eab308";
+                    }
                     await new Promise(r => setTimeout(r, delay));
                     continue;
                 }
                 throw new Error(response.status);
             }
+            if (liveStatus && liveStatus.textContent.includes("WAKING")) {
+                liveStatus.innerHTML = `<span class="live-dot"></span> SYSTEM ONLINE`;
+                liveStatus.style.color = "";
+            }
             return await response.json();
         } catch (err) {
             if (attempt < retries) {
+                if (liveStatus) {
+                    const remaining = Math.max(0, (retries - attempt) * Math.round(delay / 1000));
+                    liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> WAKING UP SERVER (${remaining}s)...`;
+                    liveStatus.style.color = "#eab308";
+                }
                 await new Promise(r => setTimeout(r, delay));
                 continue;
+            }
+            if (liveStatus) {
+                liveStatus.innerHTML = `<span class="live-dot" style="background:#dc2626;box-shadow:none;"></span> SYSTEM OFFLINE`;
+                liveStatus.style.color = "#dc2626";
             }
             throw err;
         }
@@ -786,22 +805,78 @@ document.addEventListener(
 
 
 
-async function initializeAirportHome() {
+async function waitForAirportBackend(maxWaitMs = 60000, intervalMs = 5000) {
+    const liveStatus = document.querySelector(".live-status");
+    const startTime = Date.now();
+    let countdownInterval = null;
 
-    setupSearch();
+    try {
+        while (Date.now() - startTime < maxWaitMs) {
+            const timePassed = Date.now() - startTime;
+            const remainingSec = Math.max(0, Math.ceil((maxWaitMs - timePassed) / 1000));
 
-    await Promise.all([
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4500);
+                const res = await fetch(`${AIRTRACK_API}/airlines`, {
+                    method: "GET",
+                    signal: controller.signal,
+                    headers: { "Content-Type": "application/json" }
+                });
+                clearTimeout(timeoutId);
+                if (res.ok) {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    if (liveStatus) {
+                        liveStatus.innerHTML = `<span class="live-dot"></span> SYSTEM ONLINE`;
+                        liveStatus.style.color = "";
+                    }
+                    return true;
+                }
+            } catch (e) {
+            }
 
-        loadCounts(),
+            if (!countdownInterval) {
+                if (liveStatus) {
+                    liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> WAKING UP SERVER (${remainingSec}s)...`;
+                    liveStatus.style.color = "#eab308";
+                }
+                countdownInterval = setInterval(() => {
+                    const secLeft = Math.max(0, Math.ceil((maxWaitMs - (Date.now() - startTime)) / 1000));
+                    if (secLeft > 0 && liveStatus) {
+                        liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> WAKING UP SERVER (${secLeft}s)...`;
+                    }
+                }, 1000);
+            }
 
-        loadFlights(),
+            const sleepDuration = Math.min(intervalMs, Math.max(200, maxWaitMs - (Date.now() - startTime)));
+            if (Date.now() - startTime + sleepDuration < maxWaitMs) {
+                await new Promise(resolve => setTimeout(resolve, sleepDuration));
+            } else {
+                break;
+            }
+        }
+    } finally {
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+        }
+    }
 
-        loadSearchData()
-
-    ]);
-
+    if (liveStatus) {
+        liveStatus.innerHTML = `<span class="live-dot" style="background:#dc2626;box-shadow:none;"></span> SYSTEM OFFLINE`;
+        liveStatus.style.color = "#dc2626";
+    }
+    return false;
 }
 
+async function initializeAirportHome() {
+    setupSearch();
+    await waitForAirportBackend(60000, 5000);
+    await Promise.all([
+        loadCounts(),
+        loadFlights(),
+        loadSearchData()
+    ]);
+}
 
 document.addEventListener(
     "DOMContentLoaded",
