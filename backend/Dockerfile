@@ -10,4 +10,4 @@ RUN ./mvnw clean package -Dmaven.test.skip=true
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "java -jar target/airline-system-0.0.1-SNAPSHOT.jar"]
+CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar target/airline-system-0.0.1-SNAPSHOT.jar"]
