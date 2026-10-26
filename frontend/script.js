@@ -181,52 +181,90 @@ function showSection(sectionId) {
     });
 }
 
-async function fetchData(endpoint, options = {}) {
-
-    const response = await fetch(
-        `${API_BASE}${endpoint}`,
-        {
-            ...options,
-
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {})
+async function waitForBackend(maxWaitMs = 45000, intervalMs = 3000) {
+    const statusElem = document.querySelector(".system-status");
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitMs) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6000);
+            const res = await fetch(`${API_BASE}/airlines`, {
+                method: "GET",
+                signal: controller.signal,
+                headers: { "Content-Type": "application/json" }
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+                return true;
             }
+        } catch (e) {
         }
-    );
+        if (statusElem) {
+            const elapsed = Math.round((Date.now() - startTime) / 1000);
+            statusElem.textContent = `● Waking up server (${elapsed}s)...`;
+            statusElem.style.color = "#eab308";
+        }
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    return false;
+}
 
-    let data = null;
+async function fetchData(endpoint, options = {}, retries = 5, backoffMs = 2500) {
+    const isGet = !options.method || options.method.toUpperCase() === "GET";
+    for (let attempt = 0; attempt <= (isGet ? retries : 0); attempt++) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    const contentType =
-        response.headers.get("content-type");
+            const response = await fetch(
+                `${API_BASE}${endpoint}`,
+                {
+                    ...options,
+                    signal: options.signal || controller.signal,
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(options.headers || {})
+                    }
+                }
+            );
+            clearTimeout(timeoutId);
 
-    if (
-        contentType &&
-        contentType.includes("application/json")
-    ) {
-        data = await response.json();
-    } else {
-        const text = await response.text();
-        if (text) {
-            try {
-                data = JSON.parse(text);
-            } catch {
-                data = { message: text };
+            let data = null;
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                if (text) {
+                    try {
+                        data = JSON.parse(text);
+                    } catch {
+                        data = { message: text };
+                    }
+                }
             }
+
+            if (!response.ok) {
+                if (isGet && attempt < retries && (response.status === 404 || response.status >= 500)) {
+                    await new Promise(r => setTimeout(r, backoffMs));
+                    continue;
+                }
+                const message =
+                    data?.message ||
+                    (typeof data === "string" ? data : null) ||
+                    `Request failed with status ${response.status}`;
+                throw new Error(message);
+            }
+
+            return data;
+        } catch (err) {
+            if (isGet && attempt < retries) {
+                await new Promise(r => setTimeout(r, backoffMs));
+                continue;
+            }
+            throw err;
         }
     }
-
-    if (!response.ok) {
-
-        const message =
-            data?.message ||
-            (typeof data === "string" ? data : null) ||
-            `Request failed with status ${response.status}`;
-
-        throw new Error(message);
-    }
-
-    return data;
 }
 
 let dashboardLoaded = false;
@@ -254,6 +292,21 @@ async function loadDashboard() {
         if (statusElem) {
             statusElem.textContent = "● API Online";
             statusElem.style.color = "#16a34a";
+        }
+        return;
+    }
+
+    const statusElem = document.querySelector(".system-status");
+    if (statusElem) {
+        statusElem.textContent = "● Connecting to API...";
+        statusElem.style.color = "#eab308";
+    }
+
+    const isAwake = await waitForBackend(45000, 3000);
+    if (!isAwake) {
+        if (statusElem) {
+            statusElem.textContent = "● API Offline";
+            statusElem.style.color = "#dc2626";
         }
         return;
     }
@@ -302,7 +355,6 @@ async function loadDashboard() {
         updateDashboardCount("employee-count", employees.length);
         updateDashboardCount("payment-count", payments.length);
 
-        const statusElem = document.querySelector(".system-status");
         if (statusElem) {
             statusElem.textContent = "● API Online";
             statusElem.style.color = "#16a34a";
@@ -314,7 +366,6 @@ async function loadDashboard() {
             error
         );
 
-        const statusElem = document.querySelector(".system-status");
         if (statusElem) {
             statusElem.textContent = "● API Offline";
             statusElem.style.color = "#dc2626";

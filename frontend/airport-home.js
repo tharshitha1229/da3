@@ -1,6 +1,35 @@
 const AIRTRACK_API =
     "https://airline-backend-1lhg.onrender.com/api";
 
+async function fetchAirportWithRetry(url, options = {}, retries = 8, delay = 3000) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const response = await fetch(url, {
+                ...options,
+                signal: options.signal || controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                if (attempt < retries && (response.status === 404 || response.status >= 500)) {
+                    await new Promise(r => setTimeout(r, delay));
+                    continue;
+                }
+                throw new Error(response.status);
+            }
+            return await response.json();
+        } catch (err) {
+            if (attempt < retries) {
+                await new Promise(r => setTimeout(r, delay));
+                continue;
+            }
+            throw err;
+        }
+    }
+}
+
+
 
 
 
@@ -79,23 +108,10 @@ async function loadCounts() {
 
         try {
 
-            const response =
-                await fetch(
+            const data =
+                await fetchAirportWithRetry(
                     AIRTRACK_API + endpoint
                 );
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    response.status
-                );
-
-            }
-
-
-            const data =
-                await response.json();
 
 
             const element =
@@ -146,23 +162,10 @@ async function loadFlights() {
 
     try {
 
-        const response =
-            await fetch(
+        const flights =
+            await fetchAirportWithRetry(
                 `${AIRTRACK_API}/flights`
             );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                response.status
-            );
-
-        }
-
-
-        const flights =
-            await response.json();
 
 
         if (
@@ -319,22 +322,11 @@ async function loadSearchData() {
 
         try {
 
-            const response =
-                await fetch(
+            const data =
+                await fetchAirportWithRetry(
                     AIRTRACK_API +
                     source.endpoint
                 );
-
-
-            if (!response.ok) {
-
-                continue;
-
-            }
-
-
-            const data =
-                await response.json();
 
 
             if (
