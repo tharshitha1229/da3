@@ -1,10 +1,10 @@
-FROM eclipse-temurin:17-jdk AS builder
+FROM maven:3.9.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
 COPY . .
 
-RUN chmod +x ./mvnw && ./mvnw clean package -DskipTests && cp target/airline-system-*.jar /app/app.jar
+RUN mvn clean package -DskipTests && cp target/airline-system-*.jar /app/app.jar
 
 FROM eclipse-temurin:17-jdk
 

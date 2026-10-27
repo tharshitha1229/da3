@@ -1,4 +1,12 @@
-const API_BASE = "https://airline-backend-1lhg.onrender.com/api";
+const API_BASE = localStorage.getItem("AIRTRACK_API_URL") || window.AIRTRACK_API_URL || "https://airline-backend-1lhg.onrender.com/api";
+window.setApiUrl = function(newUrl) {
+    if (newUrl) {
+        localStorage.setItem("AIRTRACK_API_URL", newUrl.trim());
+    } else {
+        localStorage.removeItem("AIRTRACK_API_URL");
+    }
+    location.reload();
+};
 let passengers = [];
 let reservations = [];
 let airports = [];
@@ -255,6 +263,89 @@ async function waitForBackend(maxWaitMs = 60000, intervalMs = 5000) {
     return false;
 }
 
+function getFallbackData(endpoint) {
+    const clean = String(endpoint).split("?")[0].replace(/\/+$/, "");
+    if (clean === "/passengers") {
+        return [
+            { passengerID: "P001", name: "John Connor", email: "john.c@example.com", dob: "1985-02-28", street: "100 Broadway", city: "New York", pin: "10001" },
+            { passengerID: "P002", name: "Sarah Connor", email: "sarah.c@example.com", dob: "1985-09-28", street: "450 Baker Street", city: "London", pin: "NW16XE" },
+            { passengerID: "P003", name: "Rajesh Kumar", email: "rajesh.k@example.com", dob: "1995-12-03", street: "12 MG Road", city: "Delhi", pin: "110001" }
+        ];
+    }
+    if (clean === "/airlines") {
+        return [
+            { airlineID: "AL001", airlineName: "American Airlines", iataCode: "AA" },
+            { airlineID: "AL002", airlineName: "British Airways", iataCode: "BA" },
+            { airlineID: "AL003", airlineName: "Emirates", iataCode: "EK" },
+            { airlineID: "AL004", airlineName: "Air India", iataCode: "AI" }
+        ];
+    }
+    if (clean === "/flights") {
+        return [
+            { flightID: "FL101", airlineID: "AL001", departureTime: "10:30:00" },
+            { flightID: "FL202", airlineID: "AL002", departureTime: "14:45:00" },
+            { flightID: "FL303", airlineID: "AL003", departureTime: "18:15:00" }
+        ];
+    }
+    if (clean === "/reservations") {
+        return [
+            { reservationID: "R001", passengerID: "P001", bookingStatus: "CONFIRMED", reservationClass: "BUSINESS", departureAirportID: "JFK", arrivalAirportID: "LHR" },
+            { reservationID: "R002", passengerID: "P002", bookingStatus: "CONFIRMED", reservationClass: "ECONOMY", departureAirportID: "LHR", arrivalAirportID: "DXB" }
+        ];
+    }
+    if (clean === "/tickets") {
+        return [
+            { reservationID: "R001", ticketNo: "TK001", seatNo: "12A", fare: 1250.0 },
+            { reservationID: "R002", ticketNo: "TK002", seatNo: "24F", fare: 680.0 }
+        ];
+    }
+    if (clean === "/baggage") {
+        return [
+            { baggageID: "BAG001", noOfPieces: 2, weight: 23.5 },
+            { baggageID: "BAG002", noOfPieces: 1, weight: 14.0 }
+        ];
+    }
+    if (clean === "/airports") {
+        return [
+            { airportID: "JFK", airportName: "John F. Kennedy International", city: "New York", country: "USA" },
+            { airportID: "LHR", airportName: "Heathrow Airport", city: "London", country: "UK" },
+            { airportID: "DXB", airportName: "Dubai International", city: "Dubai", country: "UAE" },
+            { airportID: "DEL", airportName: "Indira Gandhi International", city: "Delhi", country: "India" }
+        ];
+    }
+    if (clean === "/employees") {
+        return [
+            { employeeID: "EMP001", name: "David Miller", designation: "Ground Operations Lead", phone: "9811223344" },
+            { employeeID: "EMP002", name: "Elena Rostova", designation: "Customer Service Agent", phone: "9822334455" }
+        ];
+    }
+    if (clean === "/payments") {
+        return [
+            { paymentID: "PAY001", reservationID: "R001", ticketNo: "TK001", amount: 1250.0, paymentMethod: "Credit Card" },
+            { paymentID: "PAY002", reservationID: "R002", ticketNo: "TK002", amount: 680.0, paymentMethod: "Debit Card" }
+        ];
+    }
+    if (clean === "/ticket-baggage") {
+        return [
+            { reservationID: "R001", ticketNo: "TK001", baggageID: "BAG001", checkedInDate: "2026-10-25" }
+        ];
+    }
+    if (clean === "/passenger-phones") {
+        return [
+            { passengerID: "P002", phone: "9876543210" },
+            { passengerID: "P003", phone: "1234567890" }
+        ];
+    }
+    if (clean === "/baggage-tracking") {
+        return [
+            { baggageID: "BAG001", trackingID: "TRK001", scanLocation: "JFK - Check-in Counter 4", scanTime: "08:30:00" },
+            { baggageID: "BAG001", trackingID: "TRK002", scanLocation: "JFK - Baggage Sorting Zone B", scanTime: "09:15:00" },
+            { baggageID: "BAG001", trackingID: "TRK003", scanLocation: "JFK - Aircraft Cargo Hold A380", scanTime: "10:05:00" }
+        ];
+    }
+    return null;
+}
+
 async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000) {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
     const statusElem = document.querySelector(".system-status");
@@ -305,6 +396,12 @@ async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000)
                     await new Promise(r => setTimeout(r, backoffMs));
                     continue;
                 }
+                if (isGet) {
+                    const fallback = getFallbackData(endpoint);
+                    if (fallback !== null) {
+                        return fallback;
+                    }
+                }
                 const message =
                     data?.message ||
                     (typeof data === "string" ? data : null) ||
@@ -312,6 +409,13 @@ async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000)
                 throw new Error(message);
             }
 
+            if (statusElem) {
+                statusElem.textContent = "● API Online";
+                statusElem.className = "system-status status-online";
+                statusElem.style.setProperty("color", "#16a34a", "important");
+                statusElem.style.setProperty("background", "rgba(22, 201, 135, 0.07)", "important");
+                statusElem.style.setProperty("border-color", "rgba(22, 201, 135, 0.25)", "important");
+            }
             return data;
         } catch (err) {
             if (isGet && attempt < retries) {
@@ -325,6 +429,19 @@ async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000)
                 }
                 await new Promise(r => setTimeout(r, backoffMs));
                 continue;
+            }
+            if (isGet) {
+                const fallback = getFallbackData(endpoint);
+                if (fallback !== null) {
+                    if (statusElem && !statusElem.textContent.includes("Online")) {
+                        statusElem.textContent = "● Standby Data (Waking API)";
+                        statusElem.className = "system-status status-waking";
+                        statusElem.style.setProperty("color", "#38bdf8", "important");
+                        statusElem.style.setProperty("background", "rgba(56, 189, 248, 0.12)", "important");
+                        statusElem.style.setProperty("border-color", "rgba(56, 189, 248, 0.35)", "important");
+                    }
+                    return fallback;
+                }
             }
             throw err;
         }

@@ -1,5 +1,57 @@
 const AIRTRACK_API =
-    "https://airline-backend-1lhg.onrender.com/api";
+    localStorage.getItem("AIRTRACK_API_URL") || window.AIRTRACK_API_URL || "https://airline-backend-1lhg.onrender.com/api";
+
+function getFallbackHomeData(url) {
+    if (url.includes("/passengers")) {
+        return [
+            { passengerID: "P001", name: "John Connor", email: "john.c@example.com" },
+            { passengerID: "P002", name: "Sarah Connor", email: "sarah.c@example.com" },
+            { passengerID: "P003", name: "Rajesh Kumar", email: "rajesh.k@example.com" }
+        ];
+    }
+    if (url.includes("/flights")) {
+        return [
+            { flightID: "FL101", airlineID: "AL001", departureTime: "10:30:00" },
+            { flightID: "FL202", airlineID: "AL002", departureTime: "14:45:00" },
+            { flightID: "FL303", airlineID: "AL003", departureTime: "18:15:00" }
+        ];
+    }
+    if (url.includes("/airlines")) {
+        return [
+            { airlineID: "AL001", airlineName: "American Airlines", iataCode: "AA" },
+            { airlineID: "AL002", airlineName: "British Airways", iataCode: "BA" },
+            { airlineID: "AL003", airlineName: "Emirates", iataCode: "EK" },
+            { airlineID: "AL004", airlineName: "Air India", iataCode: "AI" }
+        ];
+    }
+    if (url.includes("/airports")) {
+        return [
+            { airportID: "JFK", airportName: "John F. Kennedy International", city: "New York", country: "USA" },
+            { airportID: "LHR", airportName: "Heathrow Airport", city: "London", country: "UK" },
+            { airportID: "DXB", airportName: "Dubai International", city: "Dubai", country: "UAE" },
+            { airportID: "DEL", airportName: "Indira Gandhi International", city: "Delhi", country: "India" }
+        ];
+    }
+    if (url.includes("/reservations")) {
+        return [
+            { reservationID: "R001", passengerID: "P001", bookingStatus: "CONFIRMED" },
+            { reservationID: "R002", passengerID: "P002", bookingStatus: "CONFIRMED" }
+        ];
+    }
+    if (url.includes("/tickets")) {
+        return [
+            { reservationID: "R001", ticketNo: "TK001", seatNo: "12A", fare: 1250.0 },
+            { reservationID: "R002", ticketNo: "TK002", seatNo: "24F", fare: 680.0 }
+        ];
+    }
+    if (url.includes("/baggage")) {
+        return [
+            { baggageID: "BAG001", noOfPieces: 2, weight: 23.5 },
+            { baggageID: "BAG002", noOfPieces: 1, weight: 14.0 }
+        ];
+    }
+    return null;
+}
 
 async function fetchAirportWithRetry(url, options = {}, retries = 12, delay = 5000) {
     const liveStatus = document.querySelector(".live-status");
@@ -22,9 +74,17 @@ async function fetchAirportWithRetry(url, options = {}, retries = 12, delay = 50
                     await new Promise(r => setTimeout(r, delay));
                     continue;
                 }
+                const fallback = getFallbackHomeData(url);
+                if (fallback !== null) {
+                    if (liveStatus) {
+                        liveStatus.innerHTML = `<span class="live-dot" style="background:#38bdf8;box-shadow:0 0 10px #38bdf8;"></span> DEMO MODE`;
+                        liveStatus.style.color = "#38bdf8";
+                    }
+                    return fallback;
+                }
                 throw new Error(response.status);
             }
-            if (liveStatus && liveStatus.textContent.includes("WAKING")) {
+            if (liveStatus) {
                 liveStatus.innerHTML = `<span class="live-dot"></span> SYSTEM ONLINE`;
                 liveStatus.style.color = "";
             }
@@ -38,6 +98,14 @@ async function fetchAirportWithRetry(url, options = {}, retries = 12, delay = 50
                 }
                 await new Promise(r => setTimeout(r, delay));
                 continue;
+            }
+            const fallback = getFallbackHomeData(url);
+            if (fallback !== null) {
+                if (liveStatus) {
+                    liveStatus.innerHTML = `<span class="live-dot" style="background:#38bdf8;box-shadow:0 0 10px #38bdf8;"></span> DEMO MODE`;
+                    liveStatus.style.color = "#38bdf8";
+                }
+                return fallback;
             }
             if (liveStatus) {
                 liveStatus.innerHTML = `<span class="live-dot" style="background:#dc2626;box-shadow:none;"></span> SYSTEM OFFLINE`;
