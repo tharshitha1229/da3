@@ -217,8 +217,7 @@ async function waitForBackend(maxWaitMs = 60000, intervalMs = 5000) {
                 const timeoutId = setTimeout(() => controller.abort(), 4500);
                 const res = await fetch(`${API_BASE}/airlines`, {
                     method: "GET",
-                    signal: controller.signal,
-                    headers: { "Content-Type": "application/json" }
+                    signal: controller.signal
                 });
                 clearTimeout(timeoutId);
                 if (res.ok) {
@@ -264,15 +263,16 @@ async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000)
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+            const headers = isGet
+                ? { ...(options.headers || {}) }
+                : { "Content-Type": "application/json", ...(options.headers || {}) };
+
             const response = await fetch(
                 `${API_BASE}${endpoint}`,
                 {
                     ...options,
                     signal: options.signal || controller.signal,
-                    headers: {
-                        "Content-Type": "application/json",
-                        ...(options.headers || {})
-                    }
+                    headers: headers
                 }
             );
             clearTimeout(timeoutId);

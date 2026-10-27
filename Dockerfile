@@ -4,13 +4,10 @@ WORKDIR /app
 
 COPY . .
 
-RUN if [ -f "./mvnw" ]; then \
-      chmod +x ./mvnw && ./mvnw clean package -DskipTests; \
-    elif [ -f "./backend/mvnw" ]; then \
-      cd backend && chmod +x ./mvnw && ./mvnw clean package -DskipTests && cp target/*.jar /app/app.jar; \
-    fi && \
-    if [ ! -f "/app/app.jar" ]; then \
-      find . -name "*.jar" ! -name "*original*" -exec cp {} /app/app.jar \; ; \
+RUN if [ -f "./backend/mvnw" ]; then \
+      cd backend && chmod +x ./mvnw && ./mvnw clean package -DskipTests && cp target/airline-system-*.jar /app/app.jar; \
+    elif [ -f "./mvnw" ]; then \
+      chmod +x ./mvnw && ./mvnw clean package -DskipTests && (cp backend/target/airline-system-*.jar /app/app.jar 2>/dev/null || cp target/airline-system-*.jar /app/app.jar); \
     fi
 
 FROM eclipse-temurin:17-jdk

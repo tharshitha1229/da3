@@ -820,8 +820,7 @@ async function waitForAirportBackend(maxWaitMs = 60000, intervalMs = 5000) {
                 const timeoutId = setTimeout(() => controller.abort(), 4500);
                 const res = await fetch(`${AIRTRACK_API}/airlines`, {
                     method: "GET",
-                    signal: controller.signal,
-                    headers: { "Content-Type": "application/json" }
+                    signal: controller.signal
                 });
                 clearTimeout(timeoutId);
                 if (res.ok) {
