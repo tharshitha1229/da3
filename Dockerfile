@@ -18,4 +18,4 @@ COPY --from=builder /app/app.jar app.jar
 
 EXPOSE 8080 10000
 
-CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -Xmx350m -Xms128m -jar app.jar"]
