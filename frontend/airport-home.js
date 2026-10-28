@@ -1,5 +1,10 @@
-const AIRTRACK_API =
-    localStorage.getItem("AIRTRACK_API_URL") || window.AIRTRACK_API_URL || "https://airline-backend-1lhg.onrender.com/api";
+const AIRTRACK_API = (window.AIRTRACK_CONFIG && window.AIRTRACK_CONFIG.getApiUrl)
+    ? window.AIRTRACK_CONFIG.getApiUrl()
+    : (localStorage.getItem("AIRTRACK_API_URL") || window.AIRTRACK_API_URL || (
+        (!window.location.hostname || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+            ? "http://localhost:8080/api"
+            : "https://airline-backend-1lhg.onrender.com/api"
+    ));
 
 function getFallbackHomeData(url) {
     if (url.includes("/passengers")) {
@@ -55,23 +60,32 @@ function getFallbackHomeData(url) {
 
 async function fetchAirportWithRetry(url, options = {}, retries = 12, delay = 5000) {
     const liveStatus = document.querySelector(".live-status");
-    for (let attempt = 0; attempt <= retries; attempt++) {
+    if (liveStatus) {
+        liveStatus.style.cursor = "pointer";
+        liveStatus.title = "Click to configure API settings";
+        liveStatus.onclick = () => window.AIRTRACK_CONFIG && window.AIRTRACK_CONFIG.openApiSettingsModal();
+    }
+    const isLocalhost = url.includes("localhost") || url.includes("127.0.0.1") || url.includes("::1");
+    const maxRetries = isLocalhost ? 1 : retries;
+    const retryDelay = isLocalhost ? 1000 : delay;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), isLocalhost ? 4000 : 10000);
             const response = await fetch(url, {
                 ...options,
                 signal: options.signal || controller.signal
             });
             clearTimeout(timeoutId);
             if (!response.ok) {
-                if (attempt < retries && (response.status === 404 || response.status >= 500)) {
+                if (attempt < maxRetries && (response.status === 404 || response.status >= 500)) {
                     if (liveStatus) {
-                        const remaining = Math.max(0, (retries - attempt) * Math.round(delay / 1000));
-                        liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> WAKING UP SERVER (${remaining}s)...`;
+                        const remaining = Math.max(0, (maxRetries - attempt) * Math.round(retryDelay / 1000));
+                        liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> CONNECTING (${remaining}s)...`;
                         liveStatus.style.color = "#eab308";
                     }
-                    await new Promise(r => setTimeout(r, delay));
+                    await new Promise(r => setTimeout(r, retryDelay));
                     continue;
                 }
                 const fallback = getFallbackHomeData(url);
@@ -90,13 +104,13 @@ async function fetchAirportWithRetry(url, options = {}, retries = 12, delay = 50
             }
             return await response.json();
         } catch (err) {
-            if (attempt < retries) {
+            if (attempt < maxRetries) {
                 if (liveStatus) {
-                    const remaining = Math.max(0, (retries - attempt) * Math.round(delay / 1000));
-                    liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> WAKING UP SERVER (${remaining}s)...`;
+                    const remaining = Math.max(0, (maxRetries - attempt) * Math.round(retryDelay / 1000));
+                    liveStatus.innerHTML = `<span class="live-dot" style="background:#eab308;box-shadow:0 0 10px #eab308;"></span> CONNECTING (${remaining}s)...`;
                     liveStatus.style.color = "#eab308";
                 }
-                await new Promise(r => setTimeout(r, delay));
+                await new Promise(r => setTimeout(r, retryDelay));
                 continue;
             }
             const fallback = getFallbackHomeData(url);

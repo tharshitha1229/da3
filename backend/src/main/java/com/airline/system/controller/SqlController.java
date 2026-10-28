@@ -124,10 +124,15 @@ public class SqlController {
 
         } catch (Exception ex) {
             long elapsed = System.currentTimeMillis() - startTime;
+            String originalError = ex.getMessage();
+            String displayMsg = "Neo4j execution error: " + originalError;
+            if (originalError != null && (originalError.contains("discovery") || originalError.contains("routing") || originalError.contains("Unable to connect"))) {
+                displayMsg = "Cloud Neo4j database is currently unreachable. If using Neo4j Aura, the instance may be paused due to inactivity. Please resume it in the Neo4j Aura Console (https://console.neo4j.io) or check your NEO4J_URI/NEO4J_USERNAME/NEO4J_PASSWORD settings.";
+            }
             response.put("success", false);
             response.put("type", "ERROR");
-            response.put("error", ex.getMessage());
-            response.put("message", "Neo4j execution error: " + ex.getMessage());
+            response.put("error", originalError);
+            response.put("message", displayMsg);
             response.put("executionTimeMs", elapsed);
             return ResponseEntity.ok(response);
         }

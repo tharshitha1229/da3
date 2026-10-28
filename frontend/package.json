@@ -1,0 +1,8 @@
+{
+  "name": "airline-frontend",
+  "version": "1.0.0",
+  "description": "Airline Reservation & Baggage Tracking System Frontend",
+  "scripts": {
+    "start": "npx serve -l 5500 ."
+  }
+}

@@ -131,7 +131,7 @@
                 </div>
 
                 <div class="topbar-right">
-                    <div class="system-status">● Connecting to API...</div>
+                    <div class="system-status" onclick="window.AIRTRACK_CONFIG && window.AIRTRACK_CONFIG.openApiSettingsModal()" style="cursor:pointer;" title="Click to view or edit API connection settings">● Connecting to API...</div>
 <div class="dashboard-navigation">
 
     <button
@@ -4112,6 +4112,7 @@ Tip: Ctrl + Enter to execute the query."></textarea>
             </div>
         </div>
     </div>
+    <script src="config.js"></script>
     <script src="script.js?v=4"></script>
     <script src="dashboard-router.js"></script>
 </body>

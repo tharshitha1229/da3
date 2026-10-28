@@ -1,11 +1,21 @@
-const API_BASE = localStorage.getItem("AIRTRACK_API_URL") || window.AIRTRACK_API_URL || "https://airline-backend-1lhg.onrender.com/api";
+const API_BASE = (window.AIRTRACK_CONFIG && window.AIRTRACK_CONFIG.getApiUrl)
+    ? window.AIRTRACK_CONFIG.getApiUrl()
+    : (localStorage.getItem("AIRTRACK_API_URL") || window.AIRTRACK_API_URL || (
+        (!window.location.hostname || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+            ? "http://localhost:8080/api"
+            : "https://airline-backend-1lhg.onrender.com/api"
+    ));
 window.setApiUrl = function(newUrl) {
-    if (newUrl) {
-        localStorage.setItem("AIRTRACK_API_URL", newUrl.trim());
+    if (window.AIRTRACK_CONFIG && window.AIRTRACK_CONFIG.setApiUrl) {
+        window.AIRTRACK_CONFIG.setApiUrl(newUrl);
     } else {
-        localStorage.removeItem("AIRTRACK_API_URL");
+        if (newUrl) {
+            localStorage.setItem("AIRTRACK_API_URL", newUrl.trim());
+        } else {
+            localStorage.removeItem("AIRTRACK_API_URL");
+        }
+        location.reload();
     }
-    location.reload();
 };
 let passengers = [];
 let reservations = [];
@@ -349,10 +359,19 @@ function getFallbackData(endpoint) {
 async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000) {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
     const statusElem = document.querySelector(".system-status");
-    for (let attempt = 0; attempt <= (isGet ? retries : 0); attempt++) {
+    if (statusElem) {
+        statusElem.style.cursor = "pointer";
+        statusElem.title = "Click to configure API connection settings";
+        statusElem.onclick = () => window.AIRTRACK_CONFIG && window.AIRTRACK_CONFIG.openApiSettingsModal();
+    }
+    const isLocalhost = API_BASE.includes("localhost") || API_BASE.includes("127.0.0.1") || API_BASE.includes("::1");
+    const effectiveRetries = isLocalhost ? 1 : retries;
+    const effectiveBackoff = isLocalhost ? 1000 : backoffMs;
+
+    for (let attempt = 0; attempt <= (isGet ? effectiveRetries : 0); attempt++) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), isLocalhost ? 4000 : 10000);
 
             const headers = isGet
                 ? { ...(options.headers || {}) }
@@ -384,16 +403,16 @@ async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000)
             }
 
             if (!response.ok) {
-                if (isGet && attempt < retries && (response.status === 404 || response.status >= 500)) {
+                if (isGet && attempt < effectiveRetries && (response.status === 404 || response.status >= 500)) {
                     if (statusElem && !statusElem.textContent.includes("Online")) {
-                        const secLeft = Math.max(0, (retries - attempt) * Math.round(backoffMs / 1000));
-                        statusElem.textContent = `● Waking up server (${secLeft}s)...`;
+                        const secLeft = Math.max(0, (effectiveRetries - attempt) * Math.round(effectiveBackoff / 1000));
+                        statusElem.textContent = `● Connecting (${secLeft}s)...`;
                         statusElem.className = "system-status status-waking";
                         statusElem.style.setProperty("color", "#eab308", "important");
                         statusElem.style.setProperty("background", "rgba(234, 179, 8, 0.12)", "important");
                         statusElem.style.setProperty("border-color", "rgba(234, 179, 8, 0.35)", "important");
                     }
-                    await new Promise(r => setTimeout(r, backoffMs));
+                    await new Promise(r => setTimeout(r, effectiveBackoff));
                     continue;
                 }
                 if (isGet) {
@@ -418,16 +437,16 @@ async function fetchData(endpoint, options = {}, retries = 12, backoffMs = 5000)
             }
             return data;
         } catch (err) {
-            if (isGet && attempt < retries) {
+            if (isGet && attempt < effectiveRetries) {
                 if (statusElem && !statusElem.textContent.includes("Online")) {
-                    const secLeft = Math.max(0, (retries - attempt) * Math.round(backoffMs / 1000));
-                    statusElem.textContent = `● Waking up server (${secLeft}s)...`;
+                    const secLeft = Math.max(0, (effectiveRetries - attempt) * Math.round(effectiveBackoff / 1000));
+                    statusElem.textContent = `● Connecting (${secLeft}s)...`;
                     statusElem.className = "system-status status-waking";
                     statusElem.style.setProperty("color", "#eab308", "important");
                     statusElem.style.setProperty("background", "rgba(234, 179, 8, 0.12)", "important");
                     statusElem.style.setProperty("border-color", "rgba(234, 179, 8, 0.35)", "important");
                 }
-                await new Promise(r => setTimeout(r, backoffMs));
+                await new Promise(r => setTimeout(r, effectiveBackoff));
                 continue;
             }
             if (isGet) {
